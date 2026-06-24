@@ -4,9 +4,9 @@ if ( !defined( 'ABSPATH' ) ) { exit; }
 /**
  * Extends the Groups post type for family tracking:
  *   - Adds a 'Family' option to group_type
- *   - Adds a 'Family' tile visible on all groups (with full content shown only for family-type groups)
+ *   - Adds a 'Family' tile visible on all groups
  *   - family_group_issues (tags) for family-level issue tracking
- *   - Renders a generational family tree when the group type is 'family'
+ *   - Renders a generational family tree (compact in tile, full in modal)
  */
 class DT_Family_Groups_Group_Tile {
 
@@ -64,19 +64,31 @@ class DT_Family_Groups_Group_Tile {
             wp_enqueue_script(
                 'dt-family-groups-gen-map',
                 plugin_dir_url( dirname( __FILE__ ) ) . 'js/family-gen-map.js',
-                [ 'jquery' ],
-                '0.1',
+                [],
+                '0.8',
                 true
             );
+
+            $post       = DT_Posts::get_post( 'groups', get_the_ID() );
+            $group_name = $post['name'] ?? '';
+            $group_type = $post['group_type']['key'] ?? '';
+
             wp_localize_script( 'dt-family-groups-gen-map', 'dtFamilyGroups', [
-                'rest_url' => esc_url_raw( rest_url() ),
-                'nonce'    => wp_create_nonce( 'wp_rest' ),
-                'post_id'  => get_the_ID(),
-                'i18n'     => [
-                    'loading'      => __( 'Loading family tree…', 'dt-family-groups' ),
-                    'error'        => __( 'Could not load family tree.', 'dt-family-groups' ),
-                    'no_relations' => __( 'No family relationships found among group members. Add spouse, parent, or child connections to contacts in this group.', 'dt-family-groups' ),
-                    'not_family'   => __( 'Set this group\'s type to "Family" to display the family tree.', 'dt-family-groups' ),
+                'rest_url'   => esc_url_raw( rest_url() ),
+                'nonce'      => wp_create_nonce( 'wp_rest' ),
+                'post_id'    => get_the_ID(),
+                'group_name' => esc_html( $group_name ),
+                'group_type' => esc_html( $group_type ),
+                'i18n'       => [
+                    'loading'           => __( 'Loading family tree…', 'dt-family-groups' ),
+                    'error'             => __( 'Could not load family tree.', 'dt-family-groups' ),
+                    'no_members'        => __( 'No members in this group yet.', 'dt-family-groups' ),
+                    'not_family'        => __( 'Set this group\'s type to "Family" to display the family tree.', 'dt-family-groups' ),
+                    'other_members'     => __( 'Other Group Members', 'dt-family-groups' ),
+                    'no_connections'    => __( 'No family connections recorded yet.', 'dt-family-groups' ),
+                    'expand'            => __( 'View Full Family Tree', 'dt-family-groups' ),
+                    'close'             => __( 'Close', 'dt-family-groups' ),
+                    'family_tree_title' => __( 'Family Tree', 'dt-family-groups' ),
                 ],
             ] );
         }
@@ -86,16 +98,10 @@ class DT_Family_Groups_Group_Tile {
         if ( $post_type !== 'groups' || $section !== 'family_group' ) {
             return;
         }
-
-        $post = DT_Posts::get_post( $post_type, get_the_ID() );
-        $group_type = $post['group_type']['key'] ?? '';
         ?>
+
         <style>
-            #dt-family-tree-container {
-                min-height: 80px;
-                overflow-x: auto;
-                padding: 8px 0;
-            }
+            /* ── Shared card / tree styles ─────────────────────────────────── */
             .dt-family-tree-msg {
                 color: #999;
                 font-style: italic;
@@ -106,42 +112,72 @@ class DT_Family_Groups_Group_Tile {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                gap: 32px;
+                gap: 16px;
                 padding: 8px 0 16px;
             }
-            .dt-family-generation {
+
+            /* ── Parents row ────────────────────────────────────────────────── */
+            .dt-family-parents-row {
                 display: flex;
                 flex-direction: row;
+                align-items: flex-start;
                 justify-content: center;
                 flex-wrap: wrap;
-                gap: 16px;
-                position: relative;
+                gap: 10px 20px;
+                padding-bottom: 12px;
+                border-bottom: 1px solid #ececec;
+                width: 100%;
             }
+
+            /* ── Children row ───────────────────────────────────────────────── */
+            .dt-family-children-row {
+                display: flex;
+                flex-direction: row;
+                align-items: flex-start;
+                justify-content: center;
+                flex-wrap: wrap;
+                gap: 8px;
+                width: 100%;
+            }
+
+            /* ── Non-universal parent label on child cards ──────────────────── */
+            .dt-parent-label {
+                font-size: 0.68em;
+                color: #999;
+                font-style: italic;
+                margin-top: 1px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 100%;
+            }
+
             .dt-family-unit {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                gap: 0;
+                flex-shrink: 0;
             }
             .dt-family-couple {
                 display: flex;
                 flex-direction: row;
-                align-items: stretch;
+                align-items: center;
+                flex-wrap: nowrap;
                 gap: 0;
             }
             .dt-family-person {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                gap: 4px;
+                gap: 3px;
                 background: #f8f8f8;
                 border: 1px solid #ddd;
                 border-radius: 6px;
-                padding: 8px 14px;
-                min-width: 90px;
-                max-width: 140px;
+                padding: 7px 12px;
+                min-width: 80px;
+                max-width: 130px;
                 text-align: center;
-                font-size: 0.85em;
+                font-size: 0.82em;
                 line-height: 1.3;
             }
             .dt-family-person a {
@@ -151,50 +187,146 @@ class DT_Family_Groups_Group_Tile {
                 word-break: break-word;
             }
             .dt-family-person a:hover { text-decoration: underline; }
-            .dt-family-person .dt-person-gender {
-                font-size: 0.75em;
-                color: #aaa;
-            }
-            .dt-family-person .dt-person-status {
-                font-size: 0.72em;
+            .dt-person-gender { font-size: 0.75em; color: #aaa; }
+            .dt-person-status {
+                font-size: 0.7em;
                 color: #fff;
                 border-radius: 10px;
-                padding: 1px 7px;
-                margin-top: 2px;
+                padding: 1px 6px;
             }
             .dt-family-spouse-join {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 0 6px;
-                font-size: 1.1em;
+                padding: 0 4px;
+                font-size: 1em;
                 color: #bbb;
-                cursor: default;
+                flex-shrink: 0;
+                align-self: center;
             }
-            .dt-family-children-row {
-                display: flex;
-                flex-direction: row;
-                justify-content: center;
-                flex-wrap: wrap;
-                gap: 10px;
-                margin-top: 16px;
+            /* ── Unconnected members section ───────────────────────────────── */
+            .dt-family-unconnected {
+                width: 100%;
+                border-top: 1px dashed #e0e0e0;
                 padding-top: 12px;
-                border-top: 2px solid #e0e0e0;
-                position: relative;
+                margin-top: 4px;
             }
-            .dt-family-children-row::before {
+            .dt-family-section-label {
+                font-size: 0.75em;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                color: #aaa;
+                margin: 0 0 10px;
+                font-weight: 600;
+            }
+            .dt-family-person-grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                justify-content: center;
+            }
+            .dt-family-person-grid .dt-family-person {
+                opacity: 0.75;
+            }
+
+            /* ── Compact tile container ────────────────────────────────────── */
+            #dt-family-tree-container {
+                position: relative;
+                max-height: 260px;
+                overflow: hidden;
+            }
+            #dt-family-tree-container::after {
                 content: '';
                 position: absolute;
-                top: -2px;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 2px;
-                height: 12px;
-                background: #e0e0e0;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 56px;
+                background: linear-gradient(to bottom, transparent, #fff);
+                pointer-events: none;
             }
-            .dt-family-lone {
-                opacity: 0.7;
+            /* When no clipping is needed (short trees) remove the fade */
+            #dt-family-tree-container.dt-no-clip { max-height: none; overflow: visible; }
+            #dt-family-tree-container.dt-no-clip::after { display: none; }
+
+            /* ── Expand button ─────────────────────────────────────────────── */
+            .dt-family-expand-btn {
+                display: none; /* shown by JS once tree loads */
+                margin-top: 6px;
+                width: 100%;
+                background: none;
+                border: 1px solid #3f729b;
+                color: #3f729b;
+                border-radius: 4px;
+                padding: 5px 10px;
+                font-size: 0.82em;
+                cursor: pointer;
+                text-align: center;
             }
+            .dt-family-expand-btn:hover { background: #3f729b; color: #fff; }
+
+            /* ── Modal overlay ─────────────────────────────────────────────── */
+            .dt-family-modal-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.65);
+                z-index: 99999;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                box-sizing: border-box;
+            }
+            .dt-family-modal-overlay.is-open { display: flex; }
+
+            .dt-family-modal-box {
+                background: #fff;
+                border-radius: 8px;
+                width: 100%;
+                max-width: 980px;
+                max-height: 90vh;
+                display: flex;
+                flex-direction: column;
+                box-shadow: 0 8px 40px rgba(0,0,0,0.35);
+                overflow: hidden;
+            }
+            .dt-family-modal-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 14px 18px;
+                border-bottom: 1px solid #e8e8e8;
+                flex-shrink: 0;
+            }
+            .dt-family-modal-title {
+                font-size: 1em;
+                font-weight: 600;
+                margin: 0;
+                color: #333;
+            }
+            .dt-family-modal-close {
+                background: none;
+                border: none;
+                font-size: 1.1em;
+                cursor: pointer;
+                color: #888;
+                padding: 4px 8px;
+                line-height: 1;
+                border-radius: 4px;
+            }
+            .dt-family-modal-close:hover { background: #f0f0f0; color: #333; }
+
+            .dt-family-modal-body {
+                overflow: auto;
+                padding: 20px;
+                flex: 1;
+                /* wider cards in the modal */
+            }
+            .dt-family-modal-body .dt-family-person {
+                min-width: 100px;
+                max-width: 160px;
+                padding: 9px 14px;
+                font-size: 0.88em;
+            }
+            .dt-family-modal-body .dt-family-tree { gap: 36px; }
+            .dt-family-modal-body .dt-family-generation { gap: 14px; }
         </style>
 
         <div class="cell small-12">
@@ -203,11 +335,26 @@ class DT_Family_Groups_Group_Tile {
                     <?php esc_html_e( 'Loading family tree…', 'dt-family-groups' ); ?>
                 </p>
             </div>
+            <button id="dt-family-open-modal" class="dt-family-expand-btn">
+                <?php esc_html_e( 'View Full Family Tree', 'dt-family-groups' ); ?> ↗
+            </button>
         </div>
 
-        <script>
-            window.dtFamilyGroupType = <?php echo wp_json_encode( $group_type ); ?>;
-        </script>
+        <!-- Full-tree modal -->
+        <div id="dt-family-modal" class="dt-family-modal-overlay" role="dialog"
+             aria-modal="true" aria-labelledby="dt-family-modal-title-text">
+            <div class="dt-family-modal-box">
+                <div class="dt-family-modal-header">
+                    <h3 class="dt-family-modal-title" id="dt-family-modal-title-text">
+                        <?php esc_html_e( 'Family Tree', 'dt-family-groups' ); ?>
+                    </h3>
+                    <button id="dt-family-modal-close" class="dt-family-modal-close"
+                            aria-label="<?php esc_attr_e( 'Close', 'dt-family-groups' ); ?>">✕</button>
+                </div>
+                <div id="dt-family-modal-tree" class="dt-family-modal-body"></div>
+            </div>
+        </div>
+
         <?php
     }
 }
