@@ -38,8 +38,8 @@
 
     // ── Person card ───────────────────────────────────────────────────────────────
     //
-    // Optional parentLabels: array of name strings to render as a small italic
-    // label underneath the card (used for non-universal parent identification).
+    // Optional parentLabels: array of name strings rendered as a small italic label
+    // underneath the card (used for non-universal parent identification).
 
     function personCard(member, parentLabels) {
         var nameEl = member.post_url
@@ -75,13 +75,132 @@
         ]);
     }
 
-    // ── Flat tree builder ─────────────────────────────────────────────────────────
+    // ── Connected-component detection (BFS over spouse/parent/child edges) ───────
+
+    function findComponents(ids, connectedSet, memberMap) {
+        var visited    = {};
+        var components = [];
+
+        ids.forEach(function (startId) {
+            if (visited[startId]) { return; }
+
+            var component = [];
+            var queue     = [startId];
+            visited[startId] = true;
+
+            while (queue.length) {
+                var id      = queue.shift();
+                component.push(id);
+                var m       = memberMap[id];
+                var neighbors = (m.spouse_ids   || [])
+                    .concat(m.parent_ids   || [])
+                    .concat(m.children_ids || []);
+                neighbors.forEach(function (nid) {
+                    if (connectedSet[nid] && !visited[nid]) {
+                        visited[nid] = true;
+                        queue.push(nid);
+                    }
+                });
+            }
+
+            components.push(component);
+        });
+
+        return components;
+    }
+
+    // ── Single-component branch renderer ────────────────────────────────────────
     //
     // Row 1 – parents: all adults with in-group children (plus their spouses),
     //         grouped with ⚭ where a spouse connection exists.
-    // Row 2 – children: all members who only have in-group parents, each labelled
-    //         with the parent(s) NOT shared by every child (so the universal parent
-    //         like a single father is omitted and only the differing mother shows).
+    // Row 2 – children: each labelled with the parent(s) NOT shared by every child
+    //         in this component (universal parents are omitted from labels).
+
+    function buildBranchDOM(componentIds, memberMap, connectedSet) {
+        var componentSet = {};
+        componentIds.forEach(function (id) { componentSet[id] = true; });
+
+        // Parent-generation: has in-group children, OR is a spouse of someone who does.
+        var parentGenSet = {};
+        componentIds.forEach(function (id) {
+            if ((memberMap[id].children_ids || []).some(function (c) { return componentSet[c]; })) {
+                parentGenSet[id] = true;
+            }
+        });
+        componentIds.forEach(function (id) {
+            if (!parentGenSet[id] &&
+                (memberMap[id].spouse_ids || []).some(function (s) { return parentGenSet[s]; })) {
+                parentGenSet[id] = true;
+            }
+        });
+
+        var parentIds = componentIds
+            .filter(function (id) { return  parentGenSet[id]; })
+            .sort(function (a, b) { return a - b; });
+        var childIds  = componentIds
+            .filter(function (id) { return !parentGenSet[id]; })
+            .sort(function (a, b) { return a - b; });
+
+        // Common parents: those who appear in EVERY child's parent_ids within this component.
+        var commonParentSet = null;
+        childIds.forEach(function (cid) {
+            var cParents = {};
+            (memberMap[cid].parent_ids || []).forEach(function (p) {
+                if (componentSet[p]) { cParents[p] = true; }
+            });
+            if (commonParentSet === null) {
+                commonParentSet = cParents;
+            } else {
+                var intersect = {};
+                Object.keys(commonParentSet).forEach(function (p) {
+                    if (cParents[p]) { intersect[p] = true; }
+                });
+                commonParentSet = intersect;
+            }
+        });
+        commonParentSet = commonParentSet || {};
+
+        var branchEl = el('div', { className: 'dt-family-root-branch' });
+
+        // Parents row
+        if (parentIds.length) {
+            var parentsRowEl  = el('div', { className: 'dt-family-parents-row' });
+            var placedParents = {};
+
+            parentIds.forEach(function (id) {
+                if (placedParents[id]) { return; }
+                placedParents[id] = true;
+
+                var spouseIds = (memberMap[id].spouse_ids || []).filter(function (s) {
+                    return parentGenSet[s] && !placedParents[s];
+                });
+                spouseIds.forEach(function (s) { placedParents[s] = true; });
+
+                parentsRowEl.appendChild(buildUnit(id, spouseIds, memberMap));
+            });
+
+            branchEl.appendChild(parentsRowEl);
+        }
+
+        // Children row
+        if (childIds.length) {
+            var childrenRowEl = el('div', { className: 'dt-family-children-row' });
+
+            childIds.forEach(function (cid) {
+                var labelParents = (memberMap[cid].parent_ids || []).filter(function (p) {
+                    return componentSet[p] && !commonParentSet[p];
+                });
+                var labelNames = labelParents.map(function (p) { return memberMap[p].name; });
+                childrenRowEl.appendChild(personCard(memberMap[cid], labelNames));
+            });
+
+            branchEl.appendChild(childrenRowEl);
+        }
+
+        return branchEl;
+    }
+
+    // ── Full tree DOM builder ─────────────────────────────────────────────────────
 
     function buildTreeDOM(data) {
         var members   = data.members || [];
@@ -102,7 +221,7 @@
         members.forEach(function (m) { memberMap[m.ID] = m; });
 
         // Split: connected (any in-group family link) vs unconnected (no links).
-        var connectedSet  = {};
+        var connectedSet   = {};
         var unconnectedIds = [];
         members.forEach(function (m) {
             var any = (m.spouse_ids   && m.spouse_ids.length)   ||
@@ -114,84 +233,26 @@
 
         var connected = Object.keys(connectedSet).map(Number);
 
-        // Parent-generation: has in-group children, OR is a spouse of someone who does.
-        var parentGenSet = {};
-        connected.forEach(function (id) {
-            if ((memberMap[id].children_ids || []).some(function (c) { return connectedSet[c]; })) {
-                parentGenSet[id] = true;
-            }
-        });
-        connected.forEach(function (id) {
-            if (!parentGenSet[id] &&
-                (memberMap[id].spouse_ids || []).some(function (s) { return parentGenSet[s]; })) {
-                parentGenSet[id] = true;
-            }
-        });
+        if (connected.length) {
+            var components = findComponents(connected, connectedSet, memberMap);
 
-        var parentIds = connected
-            .filter(function (id) { return  parentGenSet[id]; })
-            .sort(function (a, b) { return a - b; });
-        var childIds  = connected
-            .filter(function (id) { return !parentGenSet[id]; })
-            .sort(function (a, b) { return a - b; });
-
-        // Common parents: those who appear in EVERY child's parent_ids.
-        // These are omitted from child labels since they provide no differentiation.
-        var commonParentSet = null;
-        childIds.forEach(function (cid) {
-            var cParents = {};
-            (memberMap[cid].parent_ids || []).forEach(function (p) {
-                if (connectedSet[p]) { cParents[p] = true; }
-            });
-            if (commonParentSet === null) {
-                commonParentSet = cParents;
+            if (components.length === 1) {
+                // Single family unit — no divider needed.
+                treeEl.appendChild(buildBranchDOM(components[0], memberMap, connectedSet));
             } else {
-                var intersect = {};
-                Object.keys(commonParentSet).forEach(function (p) {
-                    if (cParents[p]) { intersect[p] = true; }
+                // Multiple independent family lines — display side by side.
+                var branchesEl = el('div', { className: 'dt-family-root-branches' });
+                components.forEach(function (componentIds, idx) {
+                    if (idx > 0) {
+                        branchesEl.appendChild(el('div', { className: 'dt-family-branch-divider' }));
+                    }
+                    branchesEl.appendChild(buildBranchDOM(componentIds, memberMap, connectedSet));
                 });
-                commonParentSet = intersect;
+                treeEl.appendChild(branchesEl);
             }
-        });
-        commonParentSet = commonParentSet || {};
-
-        // ── Parents row ────────────────────────────────────────────────────────
-        if (parentIds.length) {
-            var parentsRowEl  = el('div', { className: 'dt-family-parents-row' });
-            var placedParents = {};
-
-            parentIds.forEach(function (id) {
-                if (placedParents[id]) { return; }
-                placedParents[id] = true;
-
-                var spouseIds = (memberMap[id].spouse_ids || []).filter(function (s) {
-                    return parentGenSet[s] && !placedParents[s];
-                });
-                spouseIds.forEach(function (s) { placedParents[s] = true; });
-
-                parentsRowEl.appendChild(buildUnit(id, spouseIds, memberMap));
-            });
-
-            treeEl.appendChild(parentsRowEl);
         }
 
-        // ── Children row ───────────────────────────────────────────────────────
-        if (childIds.length) {
-            var childrenRowEl = el('div', { className: 'dt-family-children-row' });
-
-            childIds.forEach(function (cid) {
-                // Label with the parents specific to this child (not universal across all).
-                var labelParents = (memberMap[cid].parent_ids || []).filter(function (p) {
-                    return connectedSet[p] && !commonParentSet[p];
-                });
-                var labelNames = labelParents.map(function (p) { return memberMap[p].name; });
-                childrenRowEl.appendChild(personCard(memberMap[cid], labelNames));
-            });
-
-            treeEl.appendChild(childrenRowEl);
-        }
-
-        // ── Unconnected members ────────────────────────────────────────────────
+        // Unconnected members (no family links at all)
         if (unconnectedIds.length) {
             treeEl.appendChild(
                 el('div', { className: 'dt-family-unconnected' }, [

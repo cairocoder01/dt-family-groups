@@ -65,7 +65,7 @@ class DT_Family_Groups_Group_Tile {
                 'dt-family-groups-gen-map',
                 plugin_dir_url( dirname( __FILE__ ) ) . 'js/family-gen-map.js',
                 [],
-                '0.8',
+                '0.9',
                 true
             );
 
@@ -224,6 +224,33 @@ class DT_Family_Groups_Group_Tile {
             }
             .dt-family-person-grid .dt-family-person {
                 opacity: 0.75;
+            }
+
+            /* ── Multiple independent family lines (side-by-side) ─────────── */
+            .dt-family-root-branch {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 16px;
+                width: 100%;
+            }
+            .dt-family-root-branches {
+                display: flex;
+                flex-direction: row;
+                align-items: flex-start;
+                width: 100%;
+            }
+            .dt-family-root-branches .dt-family-root-branch {
+                flex: 1;
+                min-width: 0;
+                width: auto;
+                padding: 0 8px;
+            }
+            .dt-family-branch-divider {
+                width: 1px;
+                background: #ddd;
+                align-self: stretch;
+                flex-shrink: 0;
             }
 
             /* ── Compact tile container ────────────────────────────────────── */
