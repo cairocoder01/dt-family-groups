@@ -1,30 +1,27 @@
 {
-  "name": "Disciple.Tools - Plugin Starter Template",
+  "name": "Disciple.Tools - Family Groups",
   "version": "0.1",
-  "last_updated": "2021-03",
-  "author": "Disciple.Tools",
-  "author_homepage": "https://disciple.tools",
-  "git_owner": "DiscipleTools",
-  "git_repo": "disciple-tools-plugin-starter-template",
-  "download_url": "https://github.com/DiscipleTools/disciple-tools-plugin-starter-template/releases/latest/download/disciple-tools-plugin-starter-template.zip",
-  "homepage": "https://github.com/DiscipleTools/disciple-tools-plugin-starter-template",
-  "issues_url": "https://github.com/DiscipleTools/disciple-tools-plugin-starter-template/issues",
-  "projects_url": "https://github.com/DiscipleTools/disciple-tools-plugin-starter-template/projects/1",
-  "discussions_url": "https://github.com/DiscipleTools/disciple-tools-plugin-starter-template/discussions",
-  "wiki_url": "https://github.com/DiscipleTools/disciple-tools-plugin-starter-template/wiki",
-  "license_url": "https://raw.githubusercontent.com/DiscipleTools/disciple-tools-plugin-starter-template/master/LICENSE",
-  "readme_url": "https://raw.githubusercontent.com/DiscipleTools/disciple-tools-plugin-starter-template/master/README.md",
+  "last_updated": "2026-06",
+  "author": "cairocoder01",
+  "author_homepage": "https://github.com/cairocoder01",
+  "git_owner": "cairocoder01",
+  "git_repo": "dt-family-groups",
+  "download_url": "https://github.com/cairocoder01/dt-family-groups/releases/latest/download/dt-family-groups.zip",
+  "homepage": "https://github.com/cairocoder01/dt-family-groups",
+  "issues_url": "https://github.com/cairocoder01/dt-family-groups/issues",
+  "license_url": "https://raw.githubusercontent.com/cairocoder01/dt-family-groups/master/LICENSE",
+  "readme_url": "https://raw.githubusercontent.com/cairocoder01/dt-family-groups/master/README.md",
   "requires": "4.7",
-  "tested": "5.7",
+  "tested": "6.5",
   "upgrade_notice": "Upgrade to get the latest features.",
   "banners": {
-    "low": "https://raw.githubusercontent.com/DiscipleTools/disciple-tools-plugin-starter-template/master/documentation/banner.png",
-    "high": "https://raw.githubusercontent.com/DiscipleTools/disciple-tools-plugin-starter-template/master/documentation/banner.png"
+    "low": "https://raw.githubusercontent.com/cairocoder01/dt-family-groups/master/documentation/banner.png",
+    "high": "https://raw.githubusercontent.com/cairocoder01/dt-family-groups/master/documentation/banner.png"
   },
-  "icon": "https://raw.githubusercontent.com/DiscipleTools/disciple-tools-plugin-starter-template/master/documentation/icon.png",
+  "icon": "https://raw.githubusercontent.com/cairocoder01/dt-family-groups/master/documentation/icon.png",
   "sections": {
-    "description": "Kick start your Disciple.Tools plugin project with this template! This plugin is a collection of our best practices and code bases for creating Disciple.Tools plugins. ",
-    "installation": "(Required) You must have Disciple.Tools Theme installed before using this plugin. Once Disciple.Tools is installed, you can use the normal Plugin system to install the plugin.",
-    "changelog": ""
+    "description": "Track family relationships, marital status, and family dynamics for contacts and groups in Disciple.Tools. Adds spouse/parent/child connections, marital status, family issue tags, and a generational family tree visualization for family-type groups.",
+    "installation": "(Required) You must have the Disciple.Tools Theme installed before using this plugin.",
+    "changelog": "0.1 - Initial release"
   }
 }
