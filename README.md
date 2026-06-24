@@ -24,6 +24,8 @@ A **Family** tile is added to every contact record with the following fields:
 
 Spouse links are bidirectional — adding a spouse on one contact automatically reflects on the other. Parent/child links share the same underlying connection (`contacts_to_family_children`) so the relationship is consistent from both sides.
 
+![Contacts Family Tile](documentation/screenshots/contacts-family-tile.png)
+
 ### Groups — Family Tile & Group Type
 
 A **Family** group type option is added to the standard Group Type field, alongside Pre-Group, Group, Church, and Team.
@@ -33,6 +35,8 @@ A **Family** tile is added to every group with:
 | Field | Type | Description |
 |---|---|---|
 | Family Issues | Tags | Tags for family/marital challenges at the group level |
+
+![Groups Family Tile](documentation/screenshots/groups-family-tile.png)
 
 ### Generational Family Tree (Family-type groups only)
 
@@ -45,6 +49,8 @@ When a group's type is set to **Family**, the Family tile displays a visual gene
 - Names link directly to the contact record
 
 The tree is rendered client-side via a REST API call (`GET /wp-json/dt-family-groups/v1/family-tree/{group_id}`) and requires no page reload.
+
+![Groups Family Modal](documentation/screenshots/groups-family-modal.png)
 
 ## Requirements
 
