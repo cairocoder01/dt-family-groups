@@ -113,10 +113,10 @@ class DT_Family_Groups_Tab_General {
     }
 
     public function process_form( $token ) {
-        if ( isset( $_POST['dt_admin_form_nonce'] ) &&
-             wp_verify_nonce( sanitize_key( wp_unslash( $_POST['dt_admin_form_nonce'] ) ), 'dt_admin_form' ) ) {
+        // if ( isset( $_POST['dt_admin_form_nonce'] ) &&
+            //  wp_verify_nonce( sanitize_key( wp_unslash( $_POST['dt_admin_form_nonce'] ) ), 'dt_admin_form' ) ) {
             // Reserved for future settings.
-        }
+        // }
     }
 
     public function right_column() {
